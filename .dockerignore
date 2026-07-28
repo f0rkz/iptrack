@@ -1,0 +1,13 @@
+.git
+.agents
+.codex
+.cache
+bin
+data
+terraform-provider-iptrack
+docs
+*.tmp
+*.tfstate*
+Dockerfile*
+compose*.yaml
+README.md

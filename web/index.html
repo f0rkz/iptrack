@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>iptrack · Network inventory</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <aside>
+    <div class="brand"><span class="brand-mark">⌁</span><span>iptrack</span></div>
+    <nav><button class="nav active">Overview</button><a href="/api/v1/networks">API</a><a href="/healthz">Health</a></nav>
+    <div class="status"><span></span> Service online</div>
+  </aside>
+  <main>
+    <header><div><p class="eyebrow">NETWORK AUTOMATION</p><h1>Address space</h1><p class="sub">Inventory, allocate, and discover your infrastructure.</p></div><button class="primary" data-open="network-modal">+ Add network</button></header>
+    <section class="stats">
+      <article><label>Networks</label><strong id="stat-networks">—</strong><small>managed ranges</small></article>
+      <article><label>Addresses</label><strong id="stat-addresses">—</strong><small>tracked records</small></article>
+      <article><label>Discovered</label><strong id="stat-discovered">—</strong><small>active hosts</small></article>
+      <article><label>Utilization</label><strong id="stat-utilization">—</strong><small>of IPv4 capacity</small></article>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><div><h2>Networks</h2><p>Select a range to inspect and manage its addresses.</p></div><button id="refresh" class="ghost">↻ Refresh</button></div>
+      <div id="network-list" class="network-grid"><div class="empty">Loading networks…</div></div>
+    </section>
+    <section id="addresses-panel" class="panel hidden">
+      <div class="panel-head"><div><h2 id="address-title">Addresses</h2><p id="address-subtitle"></p></div><div class="actions"><button id="delete-network" class="ghost">Delete network</button><button id="discover" class="ghost">◎ Discover</button><button id="allocate" class="ghost">+ Allocate next</button><button class="primary small" data-open="address-modal">+ Add address</button></div></div>
+      <div id="scan-status" class="scan hidden"></div>
+      <div class="table-wrap"><table><thead><tr><th>IP address</th><th>Hostname</th><th>Status</th><th>MAC</th><th>Last seen</th><th></th></tr></thead><tbody id="address-list"></tbody></table></div>
+    </section>
+  </main>
+  <dialog id="network-modal"><form id="network-form"><div class="modal-head"><h2>Add network</h2><button type="button" data-close>×</button></div><label>Name<input name="name" required placeholder="Production LAN"></label><label>CIDR<input name="cidr" required placeholder="10.20.0.0/24"></label><label>Description<textarea name="description" placeholder="Servers and internal services"></textarea></label><p class="form-error"></p><div class="modal-actions"><button type="button" class="ghost" data-close>Cancel</button><button class="primary">Create network</button></div></form></dialog>
+  <dialog id="address-modal"><form id="address-form"><div class="modal-head"><h2>Add address</h2><button type="button" data-close>×</button></div><label>IP address<input name="ip" required placeholder="10.20.0.10"></label><label>Hostname<input name="hostname" placeholder="app-01.example.net"></label><label>Status<select name="status"><option value="assigned">Assigned</option><option value="reserved">Reserved</option></select></label><p class="form-error"></p><div class="modal-actions"><button type="button" class="ghost" data-close>Cancel</button><button class="primary">Add address</button></div></form></dialog>
+  <div id="toast"></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

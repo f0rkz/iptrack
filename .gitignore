@@ -1,0 +1,7 @@
+/bin/
+/data/
+/.cache/
+*.tmp
+.terraform/
+*.tfstate*
+terraform-provider-iptrack/terraform-provider-iptrack

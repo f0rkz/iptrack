@@ -1,0 +1,238 @@
+openapi: 3.1.0
+info:
+  title: iptrack API
+  version: 0.1.0
+  description: Network and IP address inventory and discovery API.
+servers:
+  - url: http://localhost:8080/api/v1
+paths:
+  /stats:
+    get:
+      operationId: getStats
+      responses:
+        "200":
+          description: Inventory totals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [networks, addresses, discovered]
+                properties:
+                  networks: {type: integer}
+                  addresses: {type: integer}
+                  discovered: {type: integer}
+  /networks:
+    get:
+      operationId: listNetworks
+      responses:
+        "200":
+          description: Networks
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: "#/components/schemas/Network"}}
+    post:
+      operationId: createNetwork
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: "#/components/schemas/NetworkInput"}}
+      responses:
+        "201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Network"}}}}
+        "409": {$ref: "#/components/responses/Conflict"}
+        "422": {$ref: "#/components/responses/Invalid"}
+  /networks/{id}:
+    parameters: [{$ref: "#/components/parameters/ID"}]
+    get:
+      operationId: getNetwork
+      responses:
+        "200": {description: Network, content: {application/json: {schema: {$ref: "#/components/schemas/Network"}}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+    put:
+      operationId: updateNetwork
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/NetworkInput"}}}
+      responses:
+        "200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/Network"}}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409": {$ref: "#/components/responses/Conflict"}
+        "422": {$ref: "#/components/responses/Invalid"}
+    delete:
+      operationId: deleteNetwork
+      responses:
+        "204": {description: Deleted}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409": {$ref: "#/components/responses/Conflict"}
+  /networks/{id}/allocate:
+    parameters: [{$ref: "#/components/parameters/ID"}]
+    post:
+      operationId: allocateAddress
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/AllocationInput"}}}
+      responses:
+        "201": {description: Allocated, content: {application/json: {schema: {$ref: "#/components/schemas/Address"}}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409": {$ref: "#/components/responses/Conflict"}
+  /addresses:
+    get:
+      operationId: listAddresses
+      parameters:
+        - name: network_id
+          in: query
+          schema: {type: string}
+      responses:
+        "200":
+          description: Addresses
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: "#/components/schemas/Address"}}
+    post:
+      operationId: createAddress
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/AddressInput"}}}
+      responses:
+        "201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Address"}}}}
+        "409": {$ref: "#/components/responses/Conflict"}
+        "422": {$ref: "#/components/responses/Invalid"}
+  /addresses/{id}:
+    parameters: [{$ref: "#/components/parameters/ID"}]
+    get:
+      operationId: getAddress
+      responses:
+        "200": {description: Address, content: {application/json: {schema: {$ref: "#/components/schemas/Address"}}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+    put:
+      operationId: updateAddress
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/AddressInput"}}}
+      responses:
+        "200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/Address"}}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409": {$ref: "#/components/responses/Conflict"}
+        "422": {$ref: "#/components/responses/Invalid"}
+    delete:
+      operationId: deleteAddress
+      responses:
+        "204": {description: Deleted}
+        "404": {$ref: "#/components/responses/NotFound"}
+  /discoveries:
+    get:
+      operationId: listDiscoveries
+      responses:
+        "200":
+          description: Discovery jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: {type: array, items: {$ref: "#/components/schemas/DiscoveryJob"}}
+    post:
+      operationId: startDiscovery
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/DiscoveryInput"}}}
+      responses:
+        "202": {description: Accepted, content: {application/json: {schema: {$ref: "#/components/schemas/DiscoveryJob"}}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422": {$ref: "#/components/responses/Invalid"}
+  /discoveries/{id}:
+    parameters: [{$ref: "#/components/parameters/ID"}]
+    get:
+      operationId: getDiscovery
+      responses:
+        "200": {description: Discovery job, content: {application/json: {schema: {$ref: "#/components/schemas/DiscoveryJob"}}}}
+        "404": {$ref: "#/components/responses/NotFound"}
+components:
+  parameters:
+    ID: {name: id, in: path, required: true, schema: {type: string}}
+  responses:
+    NotFound: {description: Not found, content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+    Conflict: {description: Conflict, content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+    Invalid: {description: Invalid input, content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+  schemas:
+    NetworkInput:
+      type: object
+      required: [name, cidr]
+      properties:
+        name: {type: string}
+        cidr: {type: string, examples: [10.20.0.0/24]}
+        description: {type: string}
+        tags: {type: object, additionalProperties: {type: string}}
+    Network:
+      allOf:
+        - {$ref: "#/components/schemas/NetworkInput"}
+        - type: object
+          required: [id, created_at, updated_at]
+          properties:
+            id: {type: string}
+            created_at: {type: string, format: date-time}
+            updated_at: {type: string, format: date-time}
+    AddressInput:
+      type: object
+      required: [network_id, ip]
+      properties:
+        network_id: {type: string}
+        ip: {type: string}
+        hostname: {type: string}
+        status: {type: string, enum: [reserved, assigned, discovered], default: assigned}
+        mac: {type: string}
+        vendor: {type: string}
+        metadata: {type: object, additionalProperties: {type: string}}
+    AllocationInput:
+      type: object
+      properties:
+        hostname: {type: string}
+        status: {type: string, enum: [reserved, assigned], default: assigned}
+        metadata: {type: object, additionalProperties: {type: string}}
+    Address:
+      allOf:
+        - {$ref: "#/components/schemas/AddressInput"}
+        - type: object
+          required: [id, created_at, updated_at]
+          properties:
+            id: {type: string}
+            last_seen_at: {type: string, format: date-time}
+            created_at: {type: string, format: date-time}
+            updated_at: {type: string, format: date-time}
+    DiscoveryInput:
+      type: object
+      required: [network_id]
+      properties:
+        network_id: {type: string}
+        ports: {type: array, maxItems: 32, items: {type: integer, minimum: 1, maximum: 65535}}
+        timeout_ms: {type: integer, minimum: 50, maximum: 5000, default: 300}
+    DiscoveryJob:
+      type: object
+      required: [id, network_id, status, scanned, reachable, created_at]
+      properties:
+        id: {type: string}
+        network_id: {type: string}
+        status: {type: string, enum: [queued, running, complete, failed]}
+        scanned: {type: integer}
+        reachable: {type: integer}
+        error: {type: string}
+        created_at: {type: string, format: date-time}
+        started_at: {type: string, format: date-time}
+        completed_at: {type: string, format: date-time}
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: {type: string}
+            message: {type: string}
