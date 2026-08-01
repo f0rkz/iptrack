@@ -1,5 +1,7 @@
 # iptrack
 
+[![CI](https://github.com/f0rkz/iptrack/actions/workflows/ci.yml/badge.svg)](https://github.com/f0rkz/iptrack/actions/workflows/ci.yml)
+
 `iptrack` is a small, automation-first IP address manager. It provides a JSON HTTP API, a built-in web interface, active host discovery, and a Terraform provider for managing networks and addresses.
 
 ## What is included
@@ -21,6 +23,12 @@ docker compose up --build -d
 ```
 
 Then open <http://localhost:8080>. PostgreSQL data is retained in the `postgres-data` named volume.
+
+Released application images are published to GHCR:
+
+```sh
+docker pull ghcr.io/f0rkz/iptrack:latest
+```
 
 To run the Go service directly, use Go 1.25 or newer and provide a PostgreSQL URL:
 
@@ -117,6 +125,8 @@ terraform import iptrack_address.router ip_0123456789abcdef
 ```
 
 Existing objects can also be read with the `iptrack_network` and `iptrack_address` data sources by setting their `id` attribute.
+
+Release automation and the current Terraform Registry repository-name limitation are documented in [`docs/RELEASING.md`](./docs/RELEASING.md).
 
 `IPTRACK_ENDPOINT` and `IPTRACK_TOKEN` can replace the provider attributes. The token is sent as a bearer token for deployments protected by an authenticating reverse proxy.
 

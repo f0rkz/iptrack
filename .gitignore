@@ -5,3 +5,6 @@
 .terraform/
 *.tfstate*
 terraform-provider-iptrack/terraform-provider-iptrack
+/dist/
+/coverage.out
+/node_modules/
