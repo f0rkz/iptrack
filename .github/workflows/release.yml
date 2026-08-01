@@ -37,7 +37,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.version != '' && format('v{0}', inputs.version) || (github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'main') }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
