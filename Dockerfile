@@ -6,7 +6,7 @@ COPY internal ./internal
 COPY web ./web
 RUN CGO_ENABLED=0 go build -buildvcs=false -trimpath -ldflags="-s -w" -o /out/iptrack ./cmd/iptrack
 
-FROM alpine:3.22
+FROM alpine:3.24
 ARG VERSION=dev
 ARG REVISION=unknown
 RUN apk add --no-cache ca-certificates iputils && addgroup -S iptrack && adduser -S -G iptrack iptrack
