@@ -66,19 +66,33 @@ func TestRejectsOverlappingNetworks(t *testing.T) {
 func TestDiscoveryRefreshesExistingAddress(t *testing.T) {
 	store, _ := Open(filepath.Join(t.TempDir(), "state.json"))
 	n, _ := store.CreateNetwork(NetworkInput{Name: "lan", CIDR: "10.0.0.0/24"})
-	a, err := store.CreateAddress(AddressInput{NetworkID: n.ID, IP: "10.0.0.8", Status: StatusAssigned})
+	a, err := store.CreateAddress(AddressInput{NetworkID: n.ID, IP: "10.0.0.8", Hostname: "manual-name", MAC: "AA-BB-CC-DD-EE-FF", Status: StatusAssigned})
 	if err != nil {
 		t.Fatal(err)
 	}
-	updated, err := store.RecordDiscovery(n.ID, "10.0.0.8", "printer.local", "AA:BB:CC:DD:EE:FF", map[string]string{"reachable_via": "icmp"})
+	if a.MAC != "aa:bb:cc:dd:ee:ff" {
+		t.Fatalf("MAC was not normalized: %q", a.MAC)
+	}
+	updated, err := store.RecordDiscovery(n.ID, "10.0.0.8", "printer.local", "11:22:33:44:55:66", map[string]string{"reachable_via": "icmp"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if updated.ID != a.ID || updated.Hostname != "printer.local" || updated.MAC != "aa:bb:cc:dd:ee:ff" || updated.LastSeenAt == nil {
+	if updated.ID != a.ID || updated.Hostname != "manual-name" || updated.MAC != "aa:bb:cc:dd:ee:ff" || updated.LastSeenAt == nil {
 		t.Fatalf("unexpected discovery update: %#v", updated)
 	}
 	addresses, _ := store.Addresses(n.ID)
 	if len(addresses) != 1 {
 		t.Fatal("discovery duplicated an existing address")
+	}
+	if _, err := store.CreateAddress(AddressInput{NetworkID: n.ID, IP: "10.0.0.9", MAC: "not-a-mac"}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("expected invalid MAC rejection, got %v", err)
+	}
+	blank, err := store.CreateAddress(AddressInput{NetworkID: n.ID, IP: "10.0.0.10", Status: StatusAssigned})
+	if err != nil {
+		t.Fatal(err)
+	}
+	blank, err = store.RecordDiscovery(n.ID, blank.IP, "newly-found.local", "22:33:44:55:66:77", nil)
+	if err != nil || blank.Hostname != "newly-found.local" || blank.MAC != "22:33:44:55:66:77" {
+		t.Fatalf("discovery did not populate blank identity: %#v, %v", blank, err)
 	}
 }

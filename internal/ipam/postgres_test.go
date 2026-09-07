@@ -32,6 +32,20 @@ func TestPostgresPersistenceAndAllocation(t *testing.T) {
 		store.Close()
 		t.Fatalf("allocated %s, want 198.18.250.1", address.IP)
 	}
+	address, err = store.UpdateAddress(address.ID, AddressInput{NetworkID: network.ID, IP: address.IP, Hostname: "manual-node", MAC: "AA-BB-CC-DD-EE-FF", Status: StatusAssigned})
+	if err != nil {
+		store.Close()
+		t.Fatal(err)
+	}
+	address, err = store.RecordDiscovery(network.ID, address.IP, "discovered-node", "11:22:33:44:55:66", map[string]string{"reachable_via": "icmp"})
+	if err != nil {
+		store.Close()
+		t.Fatal(err)
+	}
+	if address.Hostname != "manual-node" || address.MAC != "aa:bb:cc:dd:ee:ff" {
+		store.Close()
+		t.Fatalf("discovery overwrote manual identity: %#v", address)
+	}
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +59,7 @@ func TestPostgresPersistenceAndAllocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if persisted.Hostname != "persistent-node" || persisted.NetworkID != network.ID {
+	if persisted.Hostname != "manual-node" || persisted.MAC != "aa:bb:cc:dd:ee:ff" || persisted.NetworkID != network.ID || persisted.LastSeenAt == nil {
 		t.Fatalf("unexpected persisted address: %#v", persisted)
 	}
 	if err := reopened.DeleteAddress(address.ID); err != nil {

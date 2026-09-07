@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>iptrack · Network inventory</title>
   <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/identity.css">
 </head>
 <body>
   <aside>
@@ -28,11 +29,12 @@
     <section id="addresses-panel" class="panel hidden">
       <div class="panel-head"><div><h2 id="address-title">Addresses</h2><p id="address-subtitle"></p></div><div class="actions"><button id="delete-network" class="ghost">Delete network</button><button id="discover" class="ghost">◎ Discover</button><button id="allocate" class="ghost">+ Allocate next</button><button class="primary small" data-open="address-modal">+ Add address</button></div></div>
       <div id="scan-status" class="scan hidden"></div>
-      <div class="table-wrap"><table><thead><tr><th>IP address</th><th>Hostname</th><th>Status</th><th>MAC</th><th>Last seen</th><th></th></tr></thead><tbody id="address-list"></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>IP address</th><th>Hostname</th><th>Status</th><th>MAC</th><th>Last seen</th><th>Actions</th></tr></thead><tbody id="address-list"></tbody></table></div>
     </section>
   </main>
   <dialog id="network-modal"><form id="network-form"><div class="modal-head"><h2>Add network</h2><button type="button" data-close>×</button></div><label>Name<input name="name" required placeholder="Production LAN"></label><label>CIDR<input name="cidr" required placeholder="10.20.0.0/24"></label><label>Description<textarea name="description" placeholder="Servers and internal services"></textarea></label><p class="form-error"></p><div class="modal-actions"><button type="button" class="ghost" data-close>Cancel</button><button class="primary">Create network</button></div></form></dialog>
-  <dialog id="address-modal"><form id="address-form"><div class="modal-head"><h2>Add address</h2><button type="button" data-close>×</button></div><label>IP address<input name="ip" required placeholder="10.20.0.10"></label><label>Hostname<input name="hostname" placeholder="app-01.example.net"></label><label>Status<select name="status"><option value="assigned">Assigned</option><option value="reserved">Reserved</option></select></label><p class="form-error"></p><div class="modal-actions"><button type="button" class="ghost" data-close>Cancel</button><button class="primary">Add address</button></div></form></dialog>
+  <dialog id="address-modal"><form id="address-form"><div class="modal-head"><h2>Add address</h2><button type="button" data-close>×</button></div><label>IP address<input name="ip" required placeholder="10.20.0.10"></label><label>Hostname<input name="hostname" placeholder="app-01.example.net"></label><label>MAC address<input name="mac" placeholder="aa:bb:cc:dd:ee:ff"></label><label>Status<select name="status"><option value="assigned">Assigned</option><option value="reserved">Reserved</option></select></label><p class="form-error"></p><div class="modal-actions"><button type="button" class="ghost" data-close>Cancel</button><button class="primary">Add address</button></div></form></dialog>
+  <dialog id="edit-address-modal"><form id="edit-address-form"><div class="modal-head"><div><h2>Edit address identity</h2><p id="edit-address-ip" class="modal-subtitle"></p></div><button type="button" data-close>×</button></div><input type="hidden" name="id"><label>Hostname<input name="hostname" placeholder="app-01.example.net"></label><label>MAC address<input name="mac" placeholder="aa:bb:cc:dd:ee:ff"></label><p class="field-help">Leave a field blank to let a future probe populate it.</p><p class="form-error"></p><div class="modal-actions"><button type="button" class="ghost" data-close>Cancel</button><button class="primary">Save changes</button></div></form></dialog>
   <div id="toast"></div>
   <script src="/app.js" defer></script>
 </body>

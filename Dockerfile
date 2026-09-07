@@ -9,7 +9,7 @@ RUN CGO_ENABLED=0 go build -buildvcs=false -trimpath -ldflags="-s -w" -o /out/ip
 FROM alpine:3.24
 ARG VERSION=dev
 ARG REVISION=unknown
-RUN apk add --no-cache ca-certificates iputils && addgroup -S iptrack && adduser -S -G iptrack iptrack
+RUN apk add --no-cache ca-certificates iproute2 iputils && addgroup -S iptrack && adduser -S -G iptrack iptrack
 COPY --from=build /out/iptrack /usr/local/bin/iptrack
 LABEL org.opencontainers.image.title="iptrack" \
       org.opencontainers.image.description="Automation-first IP address management" \
