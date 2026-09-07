@@ -1,0 +1,49 @@
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.row-action,
+.delete {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.row-action:hover {
+  color: var(--accent);
+  background: var(--raised);
+}
+
+.row-action:disabled {
+  cursor: wait;
+  opacity: .45;
+}
+
+.delete {
+  font-size: 18px;
+}
+
+.delete:hover {
+  color: var(--danger);
+  background: var(--raised);
+}
+
+.modal-subtitle,
+.field-help {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.field-help {
+  margin-top: 14px;
+}

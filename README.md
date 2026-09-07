@@ -49,6 +49,7 @@ All endpoints are under `/api/v1`:
 | `POST` | `/networks/{id}/allocate` | Atomically allocate the next free address |
 | `GET`, `POST` | `/addresses` | List or create addresses (`?network_id=...` filters) |
 | `GET`, `PUT`, `DELETE` | `/addresses/{id}` | Read, update, or delete an address |
+| `POST` | `/addresses/{id}/probe` | Probe one tracked address and refresh discovered identity |
 | `GET`, `POST` | `/discoveries` | List or start discovery jobs |
 | `GET` | `/discoveries/{id}` | Poll discovery progress |
 | `GET` | `/stats` | Dashboard totals |
@@ -75,7 +76,9 @@ curl -X POST http://localhost:8080/api/v1/discoveries \
   -d '{"network_id":"net_...","ports":[22,80,443],"timeout_ms":300}'
 ```
 
-The service checks TCP ports, runs a single ICMP echo when the `ping` executable is available, reads Linux's ARP neighbor table, and performs reverse DNS for reachable hosts. Existing records are refreshed without changing their assigned/reserved status. New active hosts are recorded as `discovered`.
+The service checks TCP ports, runs a single ICMP echo when the `ping` executable is available, reads Linux's IPv4 ARP and IPv4/IPv6 neighbor tables after generating traffic, and performs reverse DNS for reachable hosts. The web UI can scan a network or probe one tracked address. Existing records are refreshed without changing their assigned/reserved status; discovery only fills blank hostname and MAC fields, so operator edits remain authoritative. New active hosts are recorded as `discovered`.
+
+MAC addresses are only visible for hosts on a directly attached layer-2 network. A container using Docker's default bridge normally sees the bridge gateway rather than your LAN's neighbor table; run iptrack directly on that segment or give the application container appropriate host/macvlan networking when MAC discovery is required.
 
 Scans are capped at 4,096 usable addresses and 32 ports per job. Put the service on a network segment that can route to the ranges it scans. Only scan networks you own or are authorized to assess.
 

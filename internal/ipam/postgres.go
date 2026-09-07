@@ -297,9 +297,13 @@ func (s *PostgresStore) UpdateAddress(id string, in AddressInput) (Address, erro
 	if in.Status == "" {
 		in.Status = StatusAssigned
 	}
+	mac, err := normalizeMAC(in.MAC)
+	if err != nil {
+		return Address{}, err
+	}
 	metadata, _ := json.Marshal(nonNilMap(in.Metadata))
 	now := time.Now().UTC()
-	a, err := scanAddress(tx.QueryRowContext(ctx, `UPDATE addresses SET network_id=$2,ip=$3::inet,hostname=$4,status=$5,mac=$6,vendor=$7,metadata=$8::jsonb,updated_at=$9 WHERE id=$1 RETURNING id,network_id,host(ip),hostname,status,mac,vendor,metadata,last_seen_at,created_at,updated_at`, id, in.NetworkID, strings.TrimSpace(in.IP), strings.TrimSpace(in.Hostname), in.Status, strings.ToLower(strings.TrimSpace(in.MAC)), strings.TrimSpace(in.Vendor), metadata, now))
+	a, err := scanAddress(tx.QueryRowContext(ctx, `UPDATE addresses SET network_id=$2,ip=$3::inet,hostname=$4,status=$5,mac=$6,vendor=$7,metadata=$8::jsonb,updated_at=$9 WHERE id=$1 RETURNING id,network_id,host(ip),hostname,status,mac,vendor,metadata,last_seen_at,created_at,updated_at`, id, in.NetworkID, strings.TrimSpace(in.IP), strings.TrimSpace(in.Hostname), in.Status, mac, strings.TrimSpace(in.Vendor), metadata, now))
 	if err != nil {
 		return Address{}, err
 	}
@@ -391,7 +395,11 @@ func (s *PostgresStore) RecordDiscovery(networkID, ip, hostname, mac string, met
 	}
 	now := time.Now().UTC()
 	raw, _ := json.Marshal(nonNilMap(metadata))
-	a, err := scanAddress(tx.QueryRowContext(ctx, `INSERT INTO addresses(id,network_id,ip,hostname,status,mac,metadata,last_seen_at,created_at,updated_at) VALUES($1,$2,$3::inet,$4,'discovered',$5,$6::jsonb,$7,$7,$7) ON CONFLICT(ip) DO UPDATE SET hostname=COALESCE(NULLIF(EXCLUDED.hostname,''),addresses.hostname),mac=COALESCE(NULLIF(EXCLUDED.mac,''),addresses.mac),metadata=addresses.metadata||EXCLUDED.metadata,last_seen_at=EXCLUDED.last_seen_at,updated_at=EXCLUDED.updated_at RETURNING id,network_id,host(ip),hostname,status,mac,vendor,metadata,last_seen_at,created_at,updated_at`, newID("ip"), networkID, ip, strings.TrimSpace(hostname), strings.ToLower(strings.TrimSpace(mac)), raw, now))
+	normalizedMAC, err := normalizeMAC(mac)
+	if err != nil {
+		return Address{}, err
+	}
+	a, err := scanAddress(tx.QueryRowContext(ctx, `INSERT INTO addresses(id,network_id,ip,hostname,status,mac,metadata,last_seen_at,created_at,updated_at) VALUES($1,$2,$3::inet,$4,'discovered',$5,$6::jsonb,$7,$7,$7) ON CONFLICT(ip) DO UPDATE SET hostname=COALESCE(NULLIF(addresses.hostname,''),EXCLUDED.hostname),mac=COALESCE(NULLIF(addresses.mac,''),EXCLUDED.mac),metadata=addresses.metadata||EXCLUDED.metadata,last_seen_at=EXCLUDED.last_seen_at,updated_at=EXCLUDED.updated_at RETURNING id,network_id,host(ip),hostname,status,mac,vendor,metadata,last_seen_at,created_at,updated_at`, newID("ip"), networkID, ip, strings.TrimSpace(hostname), normalizedMAC, raw, now))
 	if err != nil {
 		return Address{}, err
 	}
@@ -410,16 +418,23 @@ func createAddressSQL(ctx context.Context, tx *sql.Tx, in AddressInput, id strin
 	if in.Status == "" {
 		in.Status = StatusAssigned
 	}
+	mac, err := normalizeMAC(in.MAC)
+	if err != nil {
+		return Address{}, err
+	}
 	now := time.Now().UTC()
 	metadata, _ := json.Marshal(nonNilMap(in.Metadata))
 	var lastSeen any
 	if in.Status == StatusDiscovered {
 		lastSeen = now
 	}
-	return scanAddress(tx.QueryRowContext(ctx, `INSERT INTO addresses(id,network_id,ip,hostname,status,mac,vendor,metadata,last_seen_at,created_at,updated_at) VALUES($1,$2,$3::inet,$4,$5,$6,$7,$8::jsonb,$9,$10,$10) RETURNING id,network_id,host(ip),hostname,status,mac,vendor,metadata,last_seen_at,created_at,updated_at`, id, in.NetworkID, strings.TrimSpace(in.IP), strings.TrimSpace(in.Hostname), in.Status, strings.ToLower(strings.TrimSpace(in.MAC)), strings.TrimSpace(in.Vendor), metadata, lastSeen, now))
+	return scanAddress(tx.QueryRowContext(ctx, `INSERT INTO addresses(id,network_id,ip,hostname,status,mac,vendor,metadata,last_seen_at,created_at,updated_at) VALUES($1,$2,$3::inet,$4,$5,$6,$7,$8::jsonb,$9,$10,$10) RETURNING id,network_id,host(ip),hostname,status,mac,vendor,metadata,last_seen_at,created_at,updated_at`, id, in.NetworkID, strings.TrimSpace(in.IP), strings.TrimSpace(in.Hostname), in.Status, mac, strings.TrimSpace(in.Vendor), metadata, lastSeen, now))
 }
 
 func validateAddressSQL(ctx context.Context, tx *sql.Tx, in AddressInput) error {
+	if _, err := normalizeMAC(in.MAC); err != nil {
+		return err
+	}
 	var cidr string
 	if err := tx.QueryRowContext(ctx, `SELECT cidr::text FROM networks WHERE id=$1`, in.NetworkID).Scan(&cidr); err != nil {
 		return dbError(err)

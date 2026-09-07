@@ -47,6 +47,8 @@ type Manager struct {
 	maxHosts int
 }
 
+var defaultPorts = []int{22, 80, 443, 445, 3389}
+
 func NewManager(store ipam.Repository, workers, maxHosts int) *Manager {
 	return &Manager{jobs: map[string]Job{}, store: store, scanner: Scanner{Workers: workers}, maxHosts: maxHosts}
 }
@@ -61,7 +63,7 @@ func (m *Manager) Start(req Request) (Job, error) {
 		return Job{}, fmt.Errorf("%w: %v", ipam.ErrInvalid, err)
 	}
 	if len(req.Ports) == 0 {
-		req.Ports = []int{22, 80, 443, 445, 3389}
+		req.Ports = append([]int(nil), defaultPorts...)
 	}
 	if len(req.Ports) > 32 {
 		return Job{}, fmt.Errorf("%w: at most 32 ports may be probed", ipam.ErrInvalid)
@@ -84,6 +86,25 @@ func (m *Manager) Start(req Request) (Job, error) {
 	m.mu.Unlock()
 	go m.run(job.ID, prefix, req.Ports, time.Duration(req.TimeoutMS)*time.Millisecond)
 	return job, nil
+}
+
+// ProbeAddress runs a focused probe and persists observations when the host is reachable.
+func (m *Manager) ProbeAddress(ctx context.Context, id string) (Result, error) {
+	address, err := m.store.Address(id)
+	if err != nil {
+		return Result{}, err
+	}
+	ip, err := netip.ParseAddr(address.IP)
+	if err != nil {
+		return Result{}, fmt.Errorf("%w: stored address is invalid", ipam.ErrInvalid)
+	}
+	result := m.scanner.Probe(ctx, ip, defaultPorts, 500*time.Millisecond)
+	if result.Reachable {
+		if _, err := m.store.RecordDiscovery(address.NetworkID, result.IP, result.Hostname, result.MAC, result.Metadata); err != nil {
+			return Result{}, err
+		}
+	}
+	return result, nil
 }
 
 func (m *Manager) Get(id string) (Job, error) {

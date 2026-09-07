@@ -42,6 +42,7 @@ func New(store ipam.Repository, opts Options) http.Handler {
 	mux.HandleFunc("GET /api/v1/addresses/{id}", s.getAddress)
 	mux.HandleFunc("PUT /api/v1/addresses/{id}", s.updateAddress)
 	mux.HandleFunc("DELETE /api/v1/addresses/{id}", s.deleteAddress)
+	mux.HandleFunc("POST /api/v1/addresses/{id}/probe", s.probeAddress)
 	mux.HandleFunc("GET /api/v1/discoveries", s.listDiscoveries)
 	mux.HandleFunc("POST /api/v1/discoveries", s.createDiscovery)
 	mux.HandleFunc("GET /api/v1/discoveries/{id}", s.getDiscovery)
@@ -147,6 +148,10 @@ func (s *server) deleteAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+func (s *server) probeAddress(w http.ResponseWriter, r *http.Request) {
+	result, err := s.discoveries.ProbeAddress(r.Context(), r.PathValue("id"))
+	respond(w, result, err, http.StatusOK)
 }
 func (s *server) allocate(w http.ResponseWriter, r *http.Request) {
 	var in ipam.AllocationInput

@@ -126,6 +126,14 @@ paths:
       responses:
         "204": {description: Deleted}
         "404": {$ref: "#/components/responses/NotFound"}
+  /addresses/{id}/probe:
+    parameters: [{$ref: "#/components/parameters/ID"}]
+    post:
+      operationId: probeAddress
+      description: Probe one tracked address using TCP, ICMP, reverse DNS, and the local neighbor table.
+      responses:
+        "200": {description: Probe result, content: {application/json: {schema: {$ref: "#/components/schemas/ProbeResult"}}}}
+        "404": {$ref: "#/components/responses/NotFound"}
   /discoveries:
     get:
       operationId: listDiscoveries
@@ -213,6 +221,15 @@ components:
         network_id: {type: string}
         ports: {type: array, maxItems: 32, items: {type: integer, minimum: 1, maximum: 65535}}
         timeout_ms: {type: integer, minimum: 50, maximum: 5000, default: 300}
+    ProbeResult:
+      type: object
+      required: [ip, reachable]
+      properties:
+        ip: {type: string}
+        reachable: {type: boolean}
+        hostname: {type: string, description: Name observed through reverse DNS.}
+        mac: {type: string, description: Six-octet MAC observed in the local ARP or neighbor table.}
+        metadata: {type: object, additionalProperties: {type: string}}
     DiscoveryJob:
       type: object
       required: [id, network_id, status, scanned, reachable, created_at]

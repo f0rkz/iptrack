@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"os"
@@ -66,6 +67,11 @@ func (s Scanner) Scan(ctx context.Context, prefix netip.Prefix, ports []int, tim
 	return ctx.Err()
 }
 
+// Probe checks one address using the same mechanisms as a network scan.
+func (s Scanner) Probe(ctx context.Context, ip netip.Addr, ports []int, timeout time.Duration) Result {
+	return probe(ctx, ip, ports, timeout, readARP()[ip.String()])
+}
+
 func Hosts(prefix netip.Prefix, maximum int) ([]netip.Addr, error) {
 	prefix = prefix.Masked()
 	if maximum < 1 {
@@ -113,9 +119,16 @@ func probe(ctx context.Context, ip netip.Addr, ports []int, timeout time.Duratio
 			result.Metadata["reachable_via"] = "icmp"
 		}
 	}
+	neighborSource := ""
 	if mac != "" {
+		neighborSource = "arp"
+	} else {
+		mac, neighborSource = lookupNeighbor(ctx, ip, timeout, result.Reachable)
+		result.MAC = mac
+	}
+	if result.MAC != "" {
 		result.Reachable = true
-		result.Metadata["neighbor_table"] = "arp"
+		result.Metadata["mac_source"] = neighborSource
 	}
 	if result.Reachable {
 		lookupCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -123,6 +136,7 @@ func probe(ctx context.Context, ip netip.Addr, ports []int, timeout time.Duratio
 		cancel()
 		if len(names) > 0 {
 			result.Hostname = strings.TrimSuffix(names[0], ".")
+			result.Metadata["hostname_source"] = "reverse_dns"
 		}
 	}
 	if len(result.Metadata) == 0 {
@@ -142,18 +156,75 @@ func ping(ctx context.Context, ip string, timeout time.Duration) bool {
 }
 
 func readARP() map[string]string {
-	result := map[string]string{}
 	f, err := os.Open("/proc/net/arp")
 	if err != nil {
-		return result
+		return map[string]string{}
 	}
 	defer f.Close()
-	scanner := bufio.NewScanner(f)
+	return parseARP(f)
+}
+
+func parseARP(r io.Reader) map[string]string {
+	result := map[string]string{}
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
-		if len(fields) >= 4 && net.ParseIP(fields[0]) != nil && fields[3] != "00:00:00:00:00:00" {
-			result[fields[0]] = fields[3]
+		if len(fields) < 4 || net.ParseIP(fields[0]) == nil {
+			continue
+		}
+		flags, err := strconv.ParseUint(fields[2], 0, 32)
+		if err != nil || flags&0x2 == 0 {
+			continue
+		}
+		if mac, ok := parseHardwareAddress(fields[3]); ok {
+			result[fields[0]] = mac
 		}
 	}
 	return result
+}
+
+func lookupNeighbor(ctx context.Context, ip netip.Addr, timeout time.Duration, queryIPCommand bool) (string, string) {
+	if mac := readARP()[ip.String()]; mac != "" {
+		return mac, "arp"
+	}
+	// Avoid starting one process for every unresponsive host in a large scan.
+	// IPv4 ARP remains a reachability signal; `ip neigh` enriches hosts already
+	// reached by TCP/ICMP and adds IPv6 NDP support.
+	if !queryIPCommand {
+		return "", ""
+	}
+	path, err := exec.LookPath("ip")
+	if err != nil {
+		return "", ""
+	}
+	lookupCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	out, err := exec.CommandContext(lookupCtx, path, "neigh", "show", "to", ip.String()).Output()
+	if err != nil {
+		return "", ""
+	}
+	if mac := parseIPNeighbor(string(out)); mac != "" {
+		return mac, "neighbor_table"
+	}
+	return "", ""
+}
+
+func parseIPNeighbor(output string) string {
+	fields := strings.Fields(output)
+	for i := 0; i+1 < len(fields); i++ {
+		if fields[i] == "lladdr" {
+			if mac, ok := parseHardwareAddress(fields[i+1]); ok {
+				return mac
+			}
+		}
+	}
+	return ""
+}
+
+func parseHardwareAddress(raw string) (string, bool) {
+	mac, err := net.ParseMAC(raw)
+	if err != nil || len(mac) != 6 {
+		return "", false
+	}
+	return mac.String(), true
 }

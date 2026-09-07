@@ -203,8 +203,12 @@ func (s *Store) createAddressLocked(in AddressInput) (Address, error) {
 	if !validStatus(in.Status) {
 		return Address{}, fmt.Errorf("%w: invalid address status", ErrInvalid)
 	}
+	mac, err := normalizeMAC(in.MAC)
+	if err != nil {
+		return Address{}, err
+	}
 	now := time.Now().UTC()
-	a := Address{ID: newID("ip"), NetworkID: in.NetworkID, IP: ip.String(), Hostname: strings.TrimSpace(in.Hostname), Status: in.Status, MAC: strings.ToLower(strings.TrimSpace(in.MAC)), Vendor: strings.TrimSpace(in.Vendor), Metadata: cloneMap(in.Metadata), CreatedAt: now, UpdatedAt: now}
+	a := Address{ID: newID("ip"), NetworkID: in.NetworkID, IP: ip.String(), Hostname: strings.TrimSpace(in.Hostname), Status: in.Status, MAC: mac, Vendor: strings.TrimSpace(in.Vendor), Metadata: cloneMap(in.Metadata), CreatedAt: now, UpdatedAt: now}
 	if in.Status == StatusDiscovered {
 		a.LastSeenAt = &now
 	}
@@ -251,8 +255,12 @@ func (s *Store) UpdateAddress(id string, in AddressInput) (Address, error) {
 	if !validStatus(in.Status) {
 		return Address{}, fmt.Errorf("%w: invalid address status", ErrInvalid)
 	}
+	mac, err := normalizeMAC(in.MAC)
+	if err != nil {
+		return Address{}, err
+	}
 	a := s.data.Addresses[idx]
-	a.NetworkID, a.IP, a.Hostname, a.Status, a.MAC, a.Vendor, a.Metadata, a.UpdatedAt = in.NetworkID, ip.String(), strings.TrimSpace(in.Hostname), in.Status, strings.ToLower(strings.TrimSpace(in.MAC)), strings.TrimSpace(in.Vendor), cloneMap(in.Metadata), time.Now().UTC()
+	a.NetworkID, a.IP, a.Hostname, a.Status, a.MAC, a.Vendor, a.Metadata, a.UpdatedAt = in.NetworkID, ip.String(), strings.TrimSpace(in.Hostname), in.Status, mac, strings.TrimSpace(in.Vendor), cloneMap(in.Metadata), time.Now().UTC()
 	s.data.Addresses[idx] = a
 	if err := s.saveLocked(); err != nil {
 		return Address{}, err
@@ -299,14 +307,18 @@ func (s *Store) Allocate(in AllocationInput) (Address, error) {
 func (s *Store) RecordDiscovery(networkID, ip, hostname, mac string, metadata map[string]string) (Address, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	normalizedMAC, err := normalizeMAC(mac)
+	if err != nil {
+		return Address{}, err
+	}
 	now := time.Now().UTC()
 	for i, a := range s.data.Addresses {
 		if a.NetworkID == networkID && a.IP == ip {
-			if hostname != "" {
+			if hostname != "" && a.Hostname == "" {
 				a.Hostname = hostname
 			}
-			if mac != "" {
-				a.MAC = strings.ToLower(mac)
+			if normalizedMAC != "" && a.MAC == "" {
+				a.MAC = normalizedMAC
 			}
 			if a.Metadata == nil {
 				a.Metadata = map[string]string{}
@@ -322,7 +334,7 @@ func (s *Store) RecordDiscovery(networkID, ip, hostname, mac string, metadata ma
 			return cloneAddress(a), nil
 		}
 	}
-	return s.createAddressLocked(AddressInput{NetworkID: networkID, IP: ip, Hostname: hostname, Status: StatusDiscovered, MAC: mac, Metadata: metadata})
+	return s.createAddressLocked(AddressInput{NetworkID: networkID, IP: ip, Hostname: hostname, Status: StatusDiscovered, MAC: normalizedMAC, Metadata: metadata})
 }
 
 func (s *Store) networkPrefixLocked(id string) (Network, netip.Prefix, error) {
